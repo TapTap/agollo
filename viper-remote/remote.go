@@ -10,7 +10,6 @@ import (
 
 	"github.com/shima-park/agollo"
 	"github.com/spf13/viper"
-	crypt "github.com/xordataexchange/crypt/config"
 )
 
 var (
@@ -154,8 +153,6 @@ func (rc configProvider) Get(rp viper.RemoteProvider) (io.Reader, error) {
 	switch cm := cmt.(type) {
 	case viperConfigManager:
 		b, err = cm.Get(rp.Path())
-	case crypt.ConfigManager:
-		b, err = cm.Get(rp.Path())
 	}
 
 	if err != nil {
@@ -173,8 +170,6 @@ func (rc configProvider) Watch(rp viper.RemoteProvider) (io.Reader, error) {
 	var resp []byte
 	switch cm := cmt.(type) {
 	case viperConfigManager:
-		resp, err = cm.Get(rp.Path())
-	case crypt.ConfigManager:
 		resp, err = cm.Get(rp.Path())
 	}
 
@@ -197,30 +192,7 @@ func (rc configProvider) WatchChannel(rp viper.RemoteProvider) (<-chan *viper.Re
 		viperResponsCh := cm.Watch(rp.Path(), quitwc)
 		return viperResponsCh, quitwc
 	default:
-		ccm := cm.(crypt.ConfigManager)
-		quit := make(chan bool)
-		quitwc := make(chan bool)
-		viperResponsCh := make(chan *viper.RemoteResponse)
-		cryptoResponseCh := ccm.Watch(rp.Path(), quit)
-		// need this function to convert the Channel response form crypt.Response to viper.Response
-		go func(cr <-chan *crypt.Response, vr chan<- *viper.RemoteResponse, quitwc <-chan bool, quit chan<- bool) {
-			for {
-				select {
-				case <-quitwc:
-					quit <- true
-					return
-				case resp := <-cr:
-					vr <- &viper.RemoteResponse{
-						Error: resp.Error,
-						Value: resp.Value,
-					}
-
-				}
-
-			}
-		}(cryptoResponseCh, viperResponsCh, quitwc, quit)
-
-		return viperResponsCh, quitwc
+		return nil, nil
 	}
 }
 
@@ -233,10 +205,6 @@ func getConfigManager(rp viper.RemoteProvider) (interface{}, error) {
 		defer kr.Close()
 
 		switch rp.Provider() {
-		case "etcd":
-			return crypt.NewEtcdConfigManager([]string{rp.Endpoint()}, kr)
-		case "consul":
-			return crypt.NewConsulConfigManager([]string{rp.Endpoint()}, kr)
 		case "apollo":
 			return nil, errors.New("The Apollo configuration manager is not encrypted")
 		default:
@@ -244,10 +212,6 @@ func getConfigManager(rp viper.RemoteProvider) (interface{}, error) {
 		}
 	} else {
 		switch rp.Provider() {
-		case "etcd":
-			return crypt.NewStandardEtcdConfigManager([]string{rp.Endpoint()})
-		case "consul":
-			return crypt.NewStandardConsulConfigManager([]string{rp.Endpoint()})
 		case "apollo":
 			return newApolloConfigManager(appID, rp.Endpoint(), defaultAgolloOptions)
 		default:
