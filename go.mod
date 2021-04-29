@@ -1,4 +1,4 @@
-module github.com/shima-park/agollo
+module github.com/taptap/go-apollo
 
 go 1.13
 

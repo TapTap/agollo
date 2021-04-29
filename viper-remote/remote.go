@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/shima-park/agollo"
 	"github.com/spf13/viper"
+	"github.com/taptap/go-apollo"
 )
 
 var (
