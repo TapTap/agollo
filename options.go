@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 import (
 	"os"
@@ -8,7 +8,7 @@ import (
 var (
 	defaultCluster                    = "default"
 	defaultNamespace                  = "application"
-	defaultBackupFile                 = ".agollo"
+	defaultBackupFile                 = ".apollo"
 	defaultAutoFetchOnCacheMiss       = false
 	defaultFailTolerantOnBackupExists = false
 	defaultEnableSLB                  = false
@@ -24,7 +24,7 @@ type Options struct {
 	Logger                     Logger               // 日志实现类，可以设置自定义实现或者通过NewLogger()创建并设置有效的io.Writer，默认: ioutil.Discard
 	AutoFetchOnCacheMiss       bool                 // 自动获取非预设以外的Namespace的配置，默认：false
 	LongPollerInterval         time.Duration        // 轮训间隔时间，默认：1s
-	BackupFile                 string               // 备份文件存放地址，默认：.agollo
+	BackupFile                 string               // 备份文件存放地址，默认：.apollo
 	FailTolerantOnBackupExists bool                 // 服务器连接失败时允许读取备份，默认：false
 	Balancer                   Balancer             // ConfigServer负载均衡
 	EnableSLB                  bool                 // 启用ConfigServer负载均衡

@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 import (
 	"encoding/json"
@@ -16,9 +16,9 @@ var (
 )
 
 const (
-	// ENV_APOLLO_ACCESS_KEY 默认从环境变量中读取Apollo的AccessKey
+	// EnvApolloAccessKey 默认从环境变量中读取Apollo的AccessKey
 	// 会被显示传入的AccessKey所覆盖
-	ENV_APOLLO_ACCESS_KEY = "APOLLO_ACCESS_KEY"
+	EnvApolloAccessKey = "APOLLO_ACCESS_KEY"
 )
 
 type Doer interface {
@@ -40,7 +40,7 @@ func NewApolloClient(opts ...ApolloClientOption) ApolloClient {
 		Doer: &http.Client{
 			Timeout: defaultClientTimeout, // Notifications由于服务端会hold住请求60秒，所以请确保客户端访问服务端的超时时间要大于60秒。
 		},
-		AccessKey:     os.Getenv(ENV_APOLLO_ACCESS_KEY),
+		AccessKey:     os.Getenv(EnvApolloAccessKey),
 		SignatureFunc: DefaultSignatureFunc,
 	}
 

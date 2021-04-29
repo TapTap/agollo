@@ -18,8 +18,8 @@ var (
 	_ viperConfigManager = apolloConfigManager{}
 	// getConfigManager方法每次返回新对象导致缓存无效，
 	// 这里通过endpoint作为key复一个对象
-	// key: endpoint+appid value: agollo.Agollo
-	agolloMap sync.Map
+	// key: endpoint+appid value: apollo.Apollo
+	apolloMap sync.Map
 )
 
 var (
@@ -27,10 +27,10 @@ var (
 	appID string
 	// 默认为properties，apollo默认配置文件格式
 	defaultConfigType = "properties"
-	// 默认创建Agollo的Option
-	defaultAgolloOptions = []agollo.Option{
-		agollo.AutoFetchOnCacheMiss(),
-		agollo.FailTolerantOnBackupExists(),
+	// 默认创建Apollo的Option
+	defaultApolloOptions = []apollo.Option{
+		apollo.AutoFetchOnCacheMiss(),
+		apollo.FailTolerantOnBackupExists(),
 	}
 )
 
@@ -42,8 +42,8 @@ func SetConfigType(ct string) {
 	defaultConfigType = ct
 }
 
-func SetAgolloOptions(opts ...agollo.Option) {
-	defaultAgolloOptions = opts
+func SetApolloOptions(opts ...apollo.Option) {
+	defaultApolloOptions = opts
 }
 
 type viperConfigManager interface {
@@ -52,29 +52,29 @@ type viperConfigManager interface {
 }
 
 type apolloConfigManager struct {
-	agollo agollo.Agollo
+	apollo apollo.Apollo
 }
 
-func newApolloConfigManager(appid, endpoint string, opts []agollo.Option) (*apolloConfigManager, error) {
+func newApolloConfigManager(appid, endpoint string, opts []apollo.Option) (*apolloConfigManager, error) {
 	if appid == "" {
 		return nil, errors.New("The appid is not set")
 	}
 
-	ag, err := newAgollo(appid, endpoint, opts)
+	ag, err := newApollo(appid, endpoint, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	return &apolloConfigManager{
-		agollo: ag,
+		apollo: ag,
 	}, nil
 
 }
 
-func newAgollo(appid, endpoint string, opts []agollo.Option) (agollo.Agollo, error) {
-	i, found := agolloMap.Load(endpoint + "/" + appid)
+func newApollo(appid, endpoint string, opts []apollo.Option) (apollo.Apollo, error) {
+	i, found := apolloMap.Load(endpoint + "/" + appid)
 	if !found {
-		ag, err := agollo.New(
+		ag, err := apollo.New(
 			endpoint,
 			appid,
 			opts...,
@@ -86,15 +86,15 @@ func newAgollo(appid, endpoint string, opts []agollo.Option) (agollo.Agollo, err
 		// 监听并同步apollo配置
 		ag.Start()
 
-		agolloMap.Store(endpoint + "/" + appid, ag)
+		apolloMap.Store(endpoint + "/" + appid, ag)
 
 		return ag, nil
 	}
-	return i.(agollo.Agollo), nil
+	return i.(apollo.Apollo), nil
 }
 
 func (cm apolloConfigManager) Get(namespace string) ([]byte, error) {
-	configs := cm.agollo.GetNameSpace(namespace)
+	configs := cm.apollo.GetNameSpace(namespace)
 	return marshalConfigs(getConfigType(namespace), configs)
 }
 
@@ -115,7 +115,7 @@ func marshalConfigs(configType string, configs map[string]interface{}) ([]byte, 
 
 func (cm apolloConfigManager) Watch(namespace string, stop chan bool) <-chan *viper.RemoteResponse {
 	resp := make(chan *viper.RemoteResponse)
-	backendResp := cm.agollo.WatchNamespace(namespace, stop)
+	backendResp := cm.apollo.WatchNamespace(namespace, stop)
 	go func() {
 		for {
 			select {
@@ -213,7 +213,7 @@ func getConfigManager(rp viper.RemoteProvider) (interface{}, error) {
 	} else {
 		switch rp.Provider() {
 		case "apollo":
-			return newApolloConfigManager(appID, rp.Endpoint(), defaultAgolloOptions)
+			return newApolloConfigManager(appID, rp.Endpoint(), defaultApolloOptions)
 		default:
 			return nil, ErrUnsupportedProvider
 		}

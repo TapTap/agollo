@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 type ChangeType string
 

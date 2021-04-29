@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 import (
 	"encoding/json"
@@ -59,7 +59,7 @@ type testCase struct {
 	Test func(configs map[string]*Config)
 }
 
-func TestAgollo(t *testing.T) {
+func TestApollo(t *testing.T) {
 	configServerURL := "http://localhost:8080"
 	appid := "test"
 	cluster := "default"
@@ -204,7 +204,7 @@ func TestAgollo(t *testing.T) {
 					for key, expected := range config.Configurations {
 						actual := a.Get(key, WithNamespace(namespace))
 						assert.Equal(t, expected, actual,
-							"configs: %v, agollo: %v, Namespace: %s, Key: %s",
+							"configs: %v, apollo: %v, Namespace: %s, Key: %s",
 							configs, a.GetNameSpace(namespace), namespace, key)
 					}
 				}

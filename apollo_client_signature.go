@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 import (
 	"crypto/hmac"

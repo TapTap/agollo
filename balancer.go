@@ -1,4 +1,4 @@
-package agollo
+package apollo
 
 import (
 	"errors"
@@ -141,7 +141,7 @@ func (b *autoFetchBalancer) getConfigServices() ([]string, error) {
 	_, css, err := b.getConfigServers(b.metaServerAddress, b.appID)
 	if err != nil {
 		b.logger.Log(
-			"[Agollo]", "",
+			"[Apollo]", "",
 			"AppID", b.appID,
 			"MetaServerAddress", b.metaServerAddress,
 			"Error", err,

@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	//agollo.Init("192.168.12.15:8080", "AppTest")
+	//apollo.Init("192.168.12.15:8080", "AppTest")
 	remote.SetAppID("SampleApp")
 
 	app := viper.New()
