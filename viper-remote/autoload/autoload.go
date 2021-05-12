@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	envAppID     = "APOLLO_APP_ID"
-	envSecret    = "APOLLO_ACCESS_KEY"
-	envMeta      = "APOLLO_META"
-	envCluster   = "APOLLO_CLUSTER"
-	envNamespace = "APOLLO_NAMESPACE"
+	EnvAppID     = "APOLLO_APP_ID"
+	EnvSecret    = "APOLLO_ACCESS_KEY"
+	EnvMeta      = "APOLLO_META"
+	EnvCluster   = "APOLLO_CLUSTER"
+	EnvNamespace = "APOLLO_NAMESPACE"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 func init() {
 	appId := getAppID()
 	if appId == "" {
-		panic(fmt.Sprintf("autoload apollo configs: get app_id failed, please set %s environment variable", envAppID))
+		panic(fmt.Sprintf("autoload apollo configs: get app_id failed, please set %s Environment variable", EnvAppID))
 	}
 
 	if err := readConfig(appId); err != nil {
@@ -57,15 +57,15 @@ func readConfig(appId string) error {
 }
 
 func getAppID() string {
-	return os.Getenv(envAppID)
+	return os.Getenv(EnvAppID)
 }
 
 func getSecret() string {
-	return os.Getenv(envSecret)
+	return os.Getenv(EnvSecret)
 }
 
 func getMeta() string {
-	m := os.Getenv(envMeta)
+	m := os.Getenv(EnvMeta)
 	if m == "" {
 		m = defaultMeta
 	}
@@ -73,7 +73,7 @@ func getMeta() string {
 }
 
 func getCluster() string {
-	c := os.Getenv(envCluster)
+	c := os.Getenv(EnvCluster)
 	if c == "" {
 		c = defaultCluster
 	}
@@ -82,7 +82,7 @@ func getCluster() string {
 }
 
 func getNamespace() string {
-	c := os.Getenv(envNamespace)
+	c := os.Getenv(EnvNamespace)
 	if c == "" {
 		c = defaultNamespace
 	}
