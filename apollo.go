@@ -207,12 +207,12 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 				"Action", "Backup", "Error", err)
 			return
 		}
-	case http.StatusNotModified: // 服务端未修改配置情况下返回304
-		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
-			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
-			"OldReleaseKey", cachedReleaseKey.(string),
-		)
-		conf = a.getNamespace(namespace)
+	//case http.StatusNotModified: // 服务端未修改配置情况下返回304
+	//	a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
+	//		"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
+	//		"OldReleaseKey", cachedReleaseKey.(string),
+	//	)
+	//	conf = a.getNamespace(namespace)
 	default:
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
 			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
