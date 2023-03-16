@@ -2,6 +2,7 @@ package apollo
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -203,14 +204,18 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 			return
 		}
 	case http.StatusNotModified: // 服务端未修改配置情况下返回304
+		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
+			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status)
 		conf = a.getNamespace(namespace)
 	default:
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
 			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
 			"Error", err)
+		if err == nil {
+			err = fmt.Errorf("apollo server returns error %d", status)
+		}
 
 		conf = Configurations{}
-
 		// 异常状况下，如果开启容灾，则读取备份
 		if a.opts.FailTolerantOnBackupExists {
 			backupConfig, lerr := a.loadBackupByNamespace(namespace)

@@ -3,7 +3,7 @@ package apollo
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 )
 
 type Logger interface {
@@ -25,7 +25,7 @@ func NewLogger(opts ...LoggerOption) Logger {
 	}
 
 	if l.w == nil {
-		l.w = ioutil.Discard
+		l.w = os.Stdout
 	}
 
 	return l
