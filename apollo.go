@@ -193,6 +193,10 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 
 	switch status {
 	case http.StatusOK: // 正常响应
+		a.log("Namespace", namespace, "Action", "GetConfigsFromNonCache",
+			"OldReleaseKey", cachedReleaseKey.(string), "NewReleaseKey", config.ReleaseKey,
+		)
+
 		a.cache.Store(namespace, config.Configurations)     // 覆盖旧缓存
 		a.releaseKeyMap.Store(namespace, config.ReleaseKey) // 存储最新的release_key
 		conf = config.Configurations
@@ -205,11 +209,14 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 		}
 	case http.StatusNotModified: // 服务端未修改配置情况下返回304
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
-			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status)
+			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
+			"OldReleaseKey", cachedReleaseKey.(string),
+		)
 		conf = a.getNamespace(namespace)
 	default:
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
 			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
+			"OldReleaseKey", cachedReleaseKey.(string),
 			"Error", err)
 		if err == nil {
 			err = fmt.Errorf("apollo server returns error %d", status)
@@ -330,6 +337,9 @@ func (a *apollo) longPoll() {
 			// 极端情况下，提前设置notificationID，reloadNamespace还未更新配置并将配置备份，
 			// 访问apollo失败导致notificationid已是最新，而配置不是最新
 			a.notificationMap.Store(notification.NamespaceName, notification.NotificationID)
+
+			a.log("Namespace", notification.NamespaceName, "Action", "StoreNotificationID",
+				"NotificationID", notification.NotificationID)
 		} else {
 			a.sendErrorsCh("", notifications, notification.NamespaceName, err)
 		}
