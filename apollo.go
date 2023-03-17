@@ -160,10 +160,10 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 		return
 	}
 
-	localNotifications := []Notification{
+	localNotifications := []*notificationInfo{
 		{
-			NotificationID: defaultNotificationID,
-			NamespaceName:  namespace,
+			id:        defaultNotificationID,
+			namespace: namespace,
 		},
 	}
 	// 由于apollo去getRemoteNotifications获取一个不存在的namespace的notificationID时会hold请求90秒
@@ -559,11 +559,17 @@ func (a *apollo) loadBackupByNamespace(namespace string) (Configurations, error)
 // 请求被hold 90秒的情况:
 // 1. 请求的notificationID和apollo服务器中的ID相等
 // 2. 请求的namespace都是在apollo中不存在的
-func (a *apollo) getRemoteNotifications(req []Notification) ([]Notification, error) {
+func (a *apollo) getRemoteNotifications(info []*notificationInfo) ([]Notification, error) {
 	configServerURL, err := a.opts.Balancer.Select()
 	if err != nil {
 		a.log("ConfigServerUrl", configServerURL, "Error", err, "Action", "Balancer.Select")
 		return nil, err
+	}
+
+	req := make([]Notification, len(info))
+	for i, v := range info {
+		req[i].NamespaceName = v.namespace
+		req[i].NotificationID = v.id
 	}
 
 	status, notifications, err := a.opts.ApolloClient.Notifications(
@@ -582,17 +588,12 @@ func (a *apollo) getRemoteNotifications(req []Notification) ([]Notification, err
 	return notifications, nil
 }
 
-func (a *apollo) getLocalNotifications() []Notification {
-	var notifications []Notification
+func (a *apollo) getLocalNotifications() []*notificationInfo {
+	var notifications []*notificationInfo
 
 	a.notificationMap.Range(func(key, val interface{}) bool {
-		k, _ := key.(string)
 		v, _ := val.(*notificationInfo)
-		notifications = append(notifications, Notification{
-			NamespaceName:  k,
-			NotificationID: v.id,
-		})
-
+		notifications = append(notifications, v)
 		return true
 	})
 	return notifications
