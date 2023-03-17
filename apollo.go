@@ -121,7 +121,7 @@ func (a *apollo) initNamespace(namespaces ...string) error {
 		_, found := a.initialized.LoadOrStore(namespace, true)
 		if !found {
 			// (1)读取配置 (2)设置初始化notificationMap
-			status, _, err := a.reloadNamespace(namespace)
+			status, _, err := a.reloadNamespace(namespace, -1)
 
 			// 这里没法光凭靠error==nil来判断namespace是否存在，即使http请求失败，如果开启 容错，会导致error丢失
 			// 从而可能将一个不存在的namespace拿去调用getRemoteNotifications导致被hold
@@ -171,7 +171,7 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 	}
 }
 
-func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurations, err error) {
+func (a *apollo) reloadNamespace(namespace string, notificaionID int) (status int, conf Configurations, err error) {
 	var configServerURL string
 	configServerURL, err = a.opts.Balancer.Select()
 	if err != nil {
@@ -189,6 +189,7 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 		a.opts.Cluster,
 		namespace,
 		ReleaseKey(cachedReleaseKey.(string)),
+		NotificationID(notificaionID),
 	)
 
 	switch status {
@@ -328,7 +329,7 @@ func (a *apollo) longPoll() {
 		oldValue := a.getNamespace(notification.NamespaceName)
 
 		// 更新namespace
-		_, newValue, err := a.reloadNamespace(notification.NamespaceName)
+		_, newValue, err := a.reloadNamespace(notification.NamespaceName, notification.NotificationID)
 		if err == nil {
 			// 发送到监听channel
 			a.sendWatchCh(notification.NamespaceName, oldValue, newValue)
