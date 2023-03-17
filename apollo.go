@@ -47,10 +47,17 @@ type LongPollerError struct {
 	Err             error
 }
 
+type notificationInfo struct {
+	namespace    string
+	id           int   // 最后一次成功读取配置的 notification id
+	err304Cnt    int   // 读取配置接口连续返回 304 错误的次数
+	lastSyncTime int64 // 上次成功调用读取配置接口的时间戳
+}
+
 type apollo struct {
 	opts Options
 
-	notificationMap sync.Map // key: namespace value: notificationId
+	notificationMap sync.Map // key: namespace value: &notificationInfo
 	releaseKeyMap   sync.Map // key: namespace value: releaseKey
 	cache           sync.Map // key: namespace value: Configurations
 	initialized     sync.Map // key: namespace value: bool
@@ -146,7 +153,10 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 	if !exists {
 		// 不能正常获取notificationID的设置为默认notificationID
 		// 为之后longPoll提供localNoticationID参数
-		a.notificationMap.Store(namespace, defaultNotificationID)
+		a.notificationMap.Store(namespace, &notificationInfo{
+			namespace: namespace,
+			id:        defaultNotificationID,
+		})
 		return
 	}
 
@@ -163,11 +173,18 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 	if len(remoteNotifications) > 0 {
 		for _, notification := range remoteNotifications {
 			// 设置namespace初始化的notificationID
-			a.notificationMap.Store(notification.NamespaceName, notification.NotificationID)
+			a.notificationMap.Store(notification.NamespaceName, &notificationInfo{
+				namespace:    notification.NamespaceName,
+				id:           notification.NotificationID,
+				lastSyncTime: time.Now().Unix(),
+			})
 		}
 	} else {
 		// 不能正常获取notificationID的设置为默认notificationID
-		a.notificationMap.Store(namespace, defaultNotificationID)
+		a.notificationMap.Store(namespace, &notificationInfo{
+			namespace: namespace,
+			id:        defaultNotificationID,
+		})
 	}
 }
 
@@ -337,7 +354,11 @@ func (a *apollo) longPoll() {
 			// 仅在无异常的情况下更新NotificationID，
 			// 极端情况下，提前设置notificationID，reloadNamespace还未更新配置并将配置备份，
 			// 访问apollo失败导致notificationid已是最新，而配置不是最新
-			a.notificationMap.Store(notification.NamespaceName, notification.NotificationID)
+			a.notificationMap.Store(notification.NamespaceName, &notificationInfo{
+				namespace:    notification.NamespaceName,
+				id:           notification.NotificationID,
+				lastSyncTime: time.Now().Unix(),
+			})
 
 			a.log("Namespace", notification.NamespaceName, "Action", "StoreNotificationID",
 				"NotificationID", notification.NotificationID)
@@ -566,10 +587,10 @@ func (a *apollo) getLocalNotifications() []Notification {
 
 	a.notificationMap.Range(func(key, val interface{}) bool {
 		k, _ := key.(string)
-		v, _ := val.(int)
+		v, _ := val.(*notificationInfo)
 		notifications = append(notifications, Notification{
 			NamespaceName:  k,
-			NotificationID: v,
+			NotificationID: v.id,
 		})
 
 		return true
