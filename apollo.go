@@ -50,7 +50,6 @@ type LongPollerError struct {
 type notificationInfo struct {
 	namespace    string
 	id           int   // 最后一次成功读取配置的 notification id
-	err304Cnt    int   // 读取配置接口连续返回 304 错误的次数
 	lastSyncTime int64 // 上次成功调用读取配置接口的时间戳
 }
 
@@ -225,12 +224,12 @@ func (a *apollo) reloadNamespace(namespace string, notificaionID int) (status in
 				"Action", "Backup", "Error", err)
 			return
 		}
-	//case http.StatusNotModified: // 服务端未修改配置情况下返回304
-	//	a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
-	//		"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
-	//		"OldReleaseKey", cachedReleaseKey.(string),
-	//	)
-	//	conf = a.getNamespace(namespace)
+	case http.StatusNotModified: // 服务端未修改配置情况下返回304
+		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
+			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
+			"OldReleaseKey", cachedReleaseKey.(string),
+		)
+		conf = a.getNamespace(namespace)
 	default:
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
 			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
@@ -583,6 +582,19 @@ func (a *apollo) getRemoteNotifications(info []*notificationInfo) ([]Notificatio
 			"Notifications", req, "ServerResponseStatus", status,
 			"Error", err, "Action", "LongPoll")
 		return nil, err
+	}
+
+	remoteNoti := map[string]struct{}{}
+	for _, v := range notifications {
+		remoteNoti[v.NamespaceName] = struct{}{}
+	}
+
+	tNow := time.Now().Unix()
+	for _, v := range info { // 定期同步配置，避免因边界条件导致配置不同步
+		if _, ok := remoteNoti[v.namespace]; ok || tNow-v.lastSyncTime < 120 {
+			continue
+		}
+		notifications = append(notifications, Notification{NamespaceName: v.namespace, NotificationID: v.id})
 	}
 
 	return notifications, nil
