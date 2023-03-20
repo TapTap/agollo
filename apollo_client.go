@@ -85,12 +85,14 @@ func (c *apolloClient) GetConfigsFromNonCache(configServerURL, appID, cluster, n
 	}
 
 	configServerURL = normalizeURL(configServerURL)
-	requestURI := fmt.Sprintf("/configs/%s/%s/%s?releaseKey=%s&ip=%s",
+	messages := fmt.Sprintf("{\"details\":{\"%s+%s+%s\":%d}}", appID, cluster, c.getNamespace(namespace), options.notificationID)
+	requestURI := fmt.Sprintf("/configs/%s/%s/%s?releaseKey=%s&ip=%s&messages=%s",
 		url.QueryEscape(appID),
 		url.QueryEscape(cluster),
 		url.QueryEscape(c.getNamespace(namespace)),
 		options.ReleaseKey,
 		c.IP,
+		url.QueryEscape(messages),
 	)
 	apiURL := fmt.Sprintf("%s%s", configServerURL, requestURI)
 

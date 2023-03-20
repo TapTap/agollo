@@ -47,10 +47,16 @@ type LongPollerError struct {
 	Err             error
 }
 
+type notificationInfo struct {
+	namespace    string
+	id           int   // 最后一次成功读取配置的 notification id
+	lastSyncTime int64 // 上次成功调用读取配置接口的时间戳
+}
+
 type apollo struct {
 	opts Options
 
-	notificationMap sync.Map // key: namespace value: notificationId
+	notificationMap sync.Map // key: namespace value: &notificationInfo
 	releaseKeyMap   sync.Map // key: namespace value: releaseKey
 	cache           sync.Map // key: namespace value: Configurations
 	initialized     sync.Map // key: namespace value: bool
@@ -121,7 +127,7 @@ func (a *apollo) initNamespace(namespaces ...string) error {
 		_, found := a.initialized.LoadOrStore(namespace, true)
 		if !found {
 			// (1)读取配置 (2)设置初始化notificationMap
-			status, _, err := a.reloadNamespace(namespace)
+			status, _, err := a.reloadNamespace(namespace, -1)
 
 			// 这里没法光凭靠error==nil来判断namespace是否存在，即使http请求失败，如果开启 容错，会导致error丢失
 			// 从而可能将一个不存在的namespace拿去调用getRemoteNotifications导致被hold
@@ -146,14 +152,17 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 	if !exists {
 		// 不能正常获取notificationID的设置为默认notificationID
 		// 为之后longPoll提供localNoticationID参数
-		a.notificationMap.Store(namespace, defaultNotificationID)
+		a.notificationMap.Store(namespace, &notificationInfo{
+			namespace: namespace,
+			id:        defaultNotificationID,
+		})
 		return
 	}
 
-	localNotifications := []Notification{
+	localNotifications := []*notificationInfo{
 		{
-			NotificationID: defaultNotificationID,
-			NamespaceName:  namespace,
+			id:        defaultNotificationID,
+			namespace: namespace,
 		},
 	}
 	// 由于apollo去getRemoteNotifications获取一个不存在的namespace的notificationID时会hold请求90秒
@@ -163,15 +172,22 @@ func (a *apollo) setNotificationIDFromRemote(namespace string, exists bool) {
 	if len(remoteNotifications) > 0 {
 		for _, notification := range remoteNotifications {
 			// 设置namespace初始化的notificationID
-			a.notificationMap.Store(notification.NamespaceName, notification.NotificationID)
+			a.notificationMap.Store(notification.NamespaceName, &notificationInfo{
+				namespace:    notification.NamespaceName,
+				id:           notification.NotificationID,
+				lastSyncTime: time.Now().Unix(),
+			})
 		}
 	} else {
 		// 不能正常获取notificationID的设置为默认notificationID
-		a.notificationMap.Store(namespace, defaultNotificationID)
+		a.notificationMap.Store(namespace, &notificationInfo{
+			namespace: namespace,
+			id:        defaultNotificationID,
+		})
 	}
 }
 
-func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurations, err error) {
+func (a *apollo) reloadNamespace(namespace string, notificaionID int) (status int, conf Configurations, err error) {
 	var configServerURL string
 	configServerURL, err = a.opts.Balancer.Select()
 	if err != nil {
@@ -189,6 +205,7 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 		a.opts.Cluster,
 		namespace,
 		ReleaseKey(cachedReleaseKey.(string)),
+		NotificationID(notificaionID),
 	)
 
 	switch status {
@@ -207,12 +224,12 @@ func (a *apollo) reloadNamespace(namespace string) (status int, conf Configurati
 				"Action", "Backup", "Error", err)
 			return
 		}
-	//case http.StatusNotModified: // 服务端未修改配置情况下返回304
-	//	a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
-	//		"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
-	//		"OldReleaseKey", cachedReleaseKey.(string),
-	//	)
-	//	conf = a.getNamespace(namespace)
+	case http.StatusNotModified: // 服务端未修改配置情况下返回304
+		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
+			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
+			"OldReleaseKey", cachedReleaseKey.(string),
+		)
+		conf = a.getNamespace(namespace)
 	default:
 		a.log("ConfigServerUrl", configServerURL, "Namespace", namespace,
 			"Action", "GetConfigsFromNonCache", "ServerResponseStatus", status,
@@ -328,7 +345,7 @@ func (a *apollo) longPoll() {
 		oldValue := a.getNamespace(notification.NamespaceName)
 
 		// 更新namespace
-		_, newValue, err := a.reloadNamespace(notification.NamespaceName)
+		_, newValue, err := a.reloadNamespace(notification.NamespaceName, notification.NotificationID)
 		if err == nil {
 			// 发送到监听channel
 			a.sendWatchCh(notification.NamespaceName, oldValue, newValue)
@@ -336,7 +353,11 @@ func (a *apollo) longPoll() {
 			// 仅在无异常的情况下更新NotificationID，
 			// 极端情况下，提前设置notificationID，reloadNamespace还未更新配置并将配置备份，
 			// 访问apollo失败导致notificationid已是最新，而配置不是最新
-			a.notificationMap.Store(notification.NamespaceName, notification.NotificationID)
+			a.notificationMap.Store(notification.NamespaceName, &notificationInfo{
+				namespace:    notification.NamespaceName,
+				id:           notification.NotificationID,
+				lastSyncTime: time.Now().Unix(),
+			})
 
 			a.log("Namespace", notification.NamespaceName, "Action", "StoreNotificationID",
 				"NotificationID", notification.NotificationID)
@@ -537,11 +558,17 @@ func (a *apollo) loadBackupByNamespace(namespace string) (Configurations, error)
 // 请求被hold 90秒的情况:
 // 1. 请求的notificationID和apollo服务器中的ID相等
 // 2. 请求的namespace都是在apollo中不存在的
-func (a *apollo) getRemoteNotifications(req []Notification) ([]Notification, error) {
+func (a *apollo) getRemoteNotifications(info []*notificationInfo) ([]Notification, error) {
 	configServerURL, err := a.opts.Balancer.Select()
 	if err != nil {
 		a.log("ConfigServerUrl", configServerURL, "Error", err, "Action", "Balancer.Select")
 		return nil, err
+	}
+
+	req := make([]Notification, len(info))
+	for i, v := range info {
+		req[i].NamespaceName = v.namespace
+		req[i].NotificationID = v.id
 	}
 
 	status, notifications, err := a.opts.ApolloClient.Notifications(
@@ -557,20 +584,28 @@ func (a *apollo) getRemoteNotifications(req []Notification) ([]Notification, err
 		return nil, err
 	}
 
+	remoteNoti := map[string]struct{}{}
+	for _, v := range notifications {
+		remoteNoti[v.NamespaceName] = struct{}{}
+	}
+
+	tNow := time.Now().Unix()
+	for _, v := range info { // 定期同步配置，避免因边界条件导致配置不同步
+		if _, ok := remoteNoti[v.namespace]; ok || tNow-v.lastSyncTime < 120 {
+			continue
+		}
+		notifications = append(notifications, Notification{NamespaceName: v.namespace, NotificationID: v.id})
+	}
+
 	return notifications, nil
 }
 
-func (a *apollo) getLocalNotifications() []Notification {
-	var notifications []Notification
+func (a *apollo) getLocalNotifications() []*notificationInfo {
+	var notifications []*notificationInfo
 
 	a.notificationMap.Range(func(key, val interface{}) bool {
-		k, _ := key.(string)
-		v, _ := val.(int)
-		notifications = append(notifications, Notification{
-			NamespaceName:  k,
-			NotificationID: v,
-		})
-
+		v, _ := val.(*notificationInfo)
+		notifications = append(notifications, v)
 		return true
 	})
 	return notifications

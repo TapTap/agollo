@@ -33,7 +33,8 @@ type Notification struct {
 }
 
 type NotificationsOptions struct {
-	ReleaseKey string
+	ReleaseKey     string
+	notificationID int
 }
 
 type NotificationsOption func(*NotificationsOptions)
@@ -41,6 +42,12 @@ type NotificationsOption func(*NotificationsOptions)
 func ReleaseKey(releaseKey string) NotificationsOption {
 	return func(o *NotificationsOptions) {
 		o.ReleaseKey = releaseKey
+	}
+}
+
+func NotificationID(notificationID int) NotificationsOption {
+	return func(o *NotificationsOptions) {
+		o.notificationID = notificationID
 	}
 }
 
