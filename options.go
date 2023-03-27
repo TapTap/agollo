@@ -30,8 +30,6 @@ type Options struct {
 	EnableSLB                  bool                 // 启用ConfigServer负载均衡
 	RefreshIntervalInSecond    time.Duration        // ConfigServer刷新间隔
 	ClientOptions              []ApolloClientOption // 设置apollo HTTP api的配置项
-	Label                      string               // 灰度发布相关
-	IP                         string
 }
 
 func newOptions(configServerURL, appID string, opts ...Option) (Options, error) {
@@ -186,6 +184,7 @@ func AccessKey(accessKey string) Option {
 	}
 }
 
+// Grayscale 启用读取灰度配置的功能
 func Grayscale(label string) Option {
 	return func(o *Options) {
 		o.ClientOptions = append(o.ClientOptions, WithGrayscale(label))
