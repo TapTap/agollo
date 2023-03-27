@@ -31,3 +31,9 @@ func WithSignatureFunc(sf SignatureFunc) ApolloClientOption {
 		a.SignatureFunc = sf
 	}
 }
+
+func WithGrayscale(label string) ApolloClientOption {
+	return func(a *apolloClient) {
+		a.Label = label
+	}
+}

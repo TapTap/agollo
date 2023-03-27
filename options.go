@@ -86,6 +86,7 @@ func newOptions(configServerURL, appID string, opts ...Option) (Options, error) 
 未实现:
  1. Get from System Property
  3. Get from server.properties
+
 https://github.com/ctripcorp/apollo/blob/master/apollo-client/src/main/java/com/ctrip/framework/apollo/internals/ConfigServiceLocator.java#L74
 */
 func getConfigServers(configServerURL string) []string {
@@ -180,6 +181,13 @@ func ConfigServerRefreshIntervalInSecond(refreshIntervalInSecond time.Duration) 
 func AccessKey(accessKey string) Option {
 	return func(o *Options) {
 		o.ClientOptions = append(o.ClientOptions, WithAccessKey(accessKey))
+	}
+}
+
+// Grayscale 启用读取灰度配置的功能
+func Grayscale(label string) Option {
+	return func(o *Options) {
+		o.ClientOptions = append(o.ClientOptions, WithGrayscale(label))
 	}
 }
 
