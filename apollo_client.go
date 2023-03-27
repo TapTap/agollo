@@ -27,6 +27,7 @@ type Doer interface {
 
 type apolloClient struct {
 	Doer          Doer
+	Label         string
 	IP            string
 	ConfigType    string // 默认properties不需要在namespace后加后缀名，其他情况例如application.json {xml,yml,yaml,json,...}
 	AccessKey     string
@@ -94,7 +95,14 @@ func (c *apolloClient) GetConfigsFromNonCache(configServerURL, appID, cluster, n
 		c.IP,
 		url.QueryEscape(messages),
 	)
-	apiURL := fmt.Sprintf("%s%s", configServerURL, requestURI)
+	grayscale := ""
+	if c.Label != "" {
+		grayscale = fmt.Sprintf("&label=%s", url.QueryEscape(c.Label))
+	}
+	if c.IP != "" {
+		grayscale = fmt.Sprintf("%s&ip=%s", grayscale, url.QueryEscape(c.IP))
+	}
+	apiURL := fmt.Sprintf("%s%s%s", configServerURL, requestURI, grayscale)
 
 	headers := c.SignatureFunc(&SignatureContext{
 		ConfigServerURL: configServerURL,
