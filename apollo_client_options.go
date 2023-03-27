@@ -32,9 +32,8 @@ func WithSignatureFunc(sf SignatureFunc) ApolloClientOption {
 	}
 }
 
-func WithGrayscale(label, ip string) ApolloClientOption {
+func WithGrayscale(label string) ApolloClientOption {
 	return func(a *apolloClient) {
 		a.Label = label
-		a.IP = ip
 	}
 }

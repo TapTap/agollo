@@ -186,9 +186,9 @@ func AccessKey(accessKey string) Option {
 	}
 }
 
-func Grayscale(label, ip string) Option {
+func Grayscale(label string) Option {
 	return func(o *Options) {
-		o.ClientOptions = append(o.ClientOptions, WithGrayscale(label, ip))
+		o.ClientOptions = append(o.ClientOptions, WithGrayscale(label))
 	}
 }
 
