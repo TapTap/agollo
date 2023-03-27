@@ -95,11 +95,10 @@ func (c *apolloClient) GetConfigsFromNonCache(configServerURL, appID, cluster, n
 		c.IP,
 		url.QueryEscape(messages),
 	)
-	grayscale := ""
 	if c.Label != "" {
-		grayscale = fmt.Sprintf("&label=%s", url.QueryEscape(c.Label))
+		requestURI = fmt.Sprintf("%s&label=%s", requestURI, url.QueryEscape(c.Label))
 	}
-	apiURL := fmt.Sprintf("%s%s%s", configServerURL, requestURI, grayscale)
+	apiURL := fmt.Sprintf("%s%s", configServerURL, requestURI)
 
 	headers := c.SignatureFunc(&SignatureContext{
 		ConfigServerURL: configServerURL,
